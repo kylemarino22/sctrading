@@ -30,4 +30,4 @@ test = [
 ]
 
 [project.urls]
-"Homepage" = "[https://github.com/kylemarino22/sctrading](https://github.com/kylemarino22/sctrading)"
+"Homepage" = "https://github.com/kylemarino22/sctrading"

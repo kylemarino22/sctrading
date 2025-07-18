@@ -9,7 +9,7 @@ from typing import Tuple, List, Dict, Optional
 import logging
 
 # Import the FileIO class from the separate file
-from file_io import FileIO
+from sctrading.file_io import FileIO
 
 
 # --- Configuration ---
