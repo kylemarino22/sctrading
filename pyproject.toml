@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sctrading"
+version = "0.0.1"
+authors = [
+  { name="Kyle Marino", email="kmarino@alumni.usc.edu" },
+]
+description = "An RL trading system for small cap markets."
+readme = "README.md"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+# Add your project's main dependencies here
+dependencies = [
+    "pandas",
+    "numpy",
+    "torch",
+]
+
+# Defines dependencies needed only for testing
+[project.optional-dependencies]
+test = [
+    "pytest",
+]
+
+[project.urls]
+"Homepage" = "[https://github.com/kylemarino22/sctrading](https://github.com/kylemarino22/sctrading)"
