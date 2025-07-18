@@ -7,6 +7,9 @@ import json
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Tuple, List, Dict, Optional
 import logging
+from tqdm import tqdm 
+from dotenv import load_dotenv 
+import os
 
 # Import the FileIO class from the separate file
 from sctrading.file_io import FileIO
@@ -16,13 +19,15 @@ from sctrading.file_io import FileIO
 # Configure logger for the application
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    format='%(asctime)s - %(levelname)s - %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 logger = logging.getLogger(__name__)
 
 # --- Constants ---
-API_KEY = "_74P3fk7zYzp5VS6SbPgPW_ChyVhF_IA"  # Placeholder: Use a secure method to manage API keys.
+API_KEY = os.getenv("POLYGON_API_KEY")
+if not API_KEY:
+    logger.error("POLYGON_API_KEY not found in environment variables. Please create a .env file.")
 BASE_URL = "https://api.polygon.io"
 HISTORIC_START_DATE = datetime(1980, 1, 1, tzinfo=timezone.utc)
 TICKER_UPDATE_INTERVAL = timedelta(hours=24) # Using timedelta is more explicit.
@@ -63,19 +68,19 @@ class PolygonDataDownloader:
                 response.raise_for_status()
                 data = response.json()
                 batch = data.get("results", [])
-                logger.debug(f"[{desc}:{page_num}] Retrieved {len(batch)} items.")
                 all_results.extend(batch)
                 next_url = data.get("next_url")
-                params = None
+                params = None # Params are only needed for the first request
                 page_num += 1
-                time.sleep(0.01)
+                time.sleep(0.01) # Small sleep to be polite to the API
             except requests.exceptions.HTTPError as e:
                 logger.error(f"HTTP Error for {desc}: {e.response.status_code} - {e.response.text}")
                 break
             except requests.exceptions.RequestException as e:
                 logger.error(f"Request error for {desc}: {e}")
                 break
-        logger.info(f"Finished downloading {len(all_results)} total {desc} items.")
+        # Changed to debug to reduce verbosity
+        logger.debug(f"Finished downloading {len(all_results)} total {desc} items.")
         return all_results
 
     def _download_tickers(self, active: bool) -> List[Dict]:
@@ -115,8 +120,9 @@ class PolygonDataDownloader:
         bars = self._download_paginated_data(url, params, f"{symbol} {freq} bars")
         
         if not bars:
-            logger.info(f"No data fetched for {symbol} ({freq}).")
+            logger.debug(f"No data fetched for {symbol} ({freq}).")
             return pd.DataFrame()
+            
         df = pd.DataFrame(bars).rename(columns={'t': 'timestamp', 'o': 'open', 'h': 'high', 'l': 'low', 'c': 'close', 'v': 'volume', 'vw': 'vwap', 'n': 'transactions'})
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True)
         df = df.set_index('timestamp')
@@ -129,6 +135,7 @@ class PolygonDataDownloader:
         if 'transactions' in df.columns:
             df['transactions'] = pd.to_numeric(df['transactions'], errors='coerce').round(0).astype('Int64')
         
+        # This is the primary info log message per symbol
         logger.info(f"Fetched {len(df)} records for {symbol} ({freq}).")
         return df[expected_cols]
 
@@ -141,8 +148,6 @@ class PolygonDataDownloader:
         effective_start_date = start_date
         was_up_to_date = False
         
-        # --- FIX: When update is False, we want to redownload and overwrite. ---
-        # The overwrite flag is the opposite of the update flag.
         should_overwrite = not update
 
         if update and not effective_start_date:
@@ -152,7 +157,8 @@ class PolygonDataDownloader:
                 
                 if effective_start_date.date() >= TODAY:
                     was_up_to_date = True
-                    logger.info(f"Data for {symbol} ({freq}) is current. Skipping.")
+                    # Changed to debug to reduce verbosity
+                    logger.debug(f"Data for {symbol} ({freq}) is current. Skipping.")
                     return symbol, was_up_to_date
             else:
                 effective_start_date = HISTORIC_START_DATE
@@ -162,10 +168,9 @@ class PolygonDataDownloader:
         try:
             df = self.fetch_data_for_symbol(symbol, freq, effective_start_date)
             if not df.empty:
-                # Pass the dynamically determined overwrite flag
                 self.file_io.write_raw_data(df, symbol, freq, trade_or_quote, overwrite=should_overwrite)
             else:
-                logger.info(f"No new data for {symbol} ({freq}).")
+                logger.debug(f"No new data for {symbol} ({freq}).")
         except Exception as e:
             logger.error(f"Failed to download/process {symbol} ({freq}): {e}", exc_info=True)
         
@@ -193,17 +198,19 @@ class PolygonDataDownloader:
         
         logger.info(f"Submitting {len(tasks)} tasks to {MAX_WORKERS} workers...")
         with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+            # Wrap the as_completed iterator with tqdm for a progress bar
             futures = {executor.submit(self.download_symbol, *task): task for task in tasks}
-            for i, future in enumerate(as_completed(futures), 1):
+            for future in tqdm(as_completed(futures), total=len(tasks), desc="Downloading data"):
                 symbol, freq, _, _, _ = futures[future]
                 try:
+                    # The result is still available from the future
                     _, was_up_to_date = future.result()
-                    if not was_up_to_date:
-                        logger.info(f"({i}/{len(tasks)}) Completed task for {symbol} ({freq}).")
                 except Exception as e:
-                    logger.error(f"({i}/{len(tasks)}) Task for {symbol} ({freq}) failed: {e}")
+                    # Log errors for failed tasks
+                    logger.error(f"Task for {symbol} ({freq}) failed in future: {e}")
 
         logger.info("Data download process finished.")
+
 
 # --- Execution Example ---
 if __name__ == "__main__":
@@ -215,14 +222,14 @@ if __name__ == "__main__":
     logger.info("STARTING DOWNLOAD FOR ACTIVE TICKERS (DAILY TRADES)")
     logger.info("="*50)
     
-    # downloader.download(
-    #     update=True,
-    #     target_freqs=["5minute"],
-    #     target_types=["trade"],
-    #     only_active_tickers=True
-    # )
+    downloader.download(
+        update=True,
+        target_freqs=["5minute"],
+        target_types=["trade"],
+        only_active_tickers=True
+    )
 
-    downloader.download_symbol("ACIW", "5minute", "trade", update=False)
+    # downloader.download_symbol("ACIW", "5minute", "trade", update=False)
     
     logger.info("\n" + "="*50)
     logger.info("DOWNLOAD FOR ACTIVE TICKERS COMPLETE.")

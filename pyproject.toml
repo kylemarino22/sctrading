@@ -21,6 +21,8 @@ dependencies = [
     "pandas",
     "numpy",
     "torch",
+    "python-dotenv",
+    "tqdm"
 ]
 
 # Defines dependencies needed only for testing

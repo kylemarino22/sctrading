@@ -9,7 +9,7 @@ import concurrent.futures
 
 import pandas as pd
 
-API_KEY       = "8PB9Ur5yWGX7d7okqxhhvB9i_0bCsOut"
+API_KEY       = ""
 BASE_URL      = "https://api.polygon.io"
 
 DATA_DIR      = Path("/mnt/nas/price_data/polygon")

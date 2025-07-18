@@ -7,7 +7,7 @@ import logging
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import os
 from typing import Optional, Dict
-from data_manager import DataManager
+from sctrading.data_manager import DataManager
 from tqdm import tqdm # Import tqdm
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -147,7 +147,7 @@ class FeaturePreprocessor:
 if __name__ == "__main__":
     # --- Control Panel ---
     DEBUG_MODE = False
-    DEBUG_TICKER = "AAIC"
+    DEBUG_TICKER = "ZYME"
 
     # --- QUIET DOWN CHATTY LOGGERS ---
     # This prevents logs from DataManager from overwhelming the tqdm progress bar
@@ -161,7 +161,7 @@ if __name__ == "__main__":
     # --- Date & Worker Configuration ---
     RUN_START_DATE = date(2020, 1, 1)
     RUN_END_DATE = date.today() - timedelta(days=1)
-    NUM_WORKERS = max(1, (os.cpu_count() or 4) - 2)
+    NUM_WORKERS = max(1, (os.cpu_count() or 4) - 4)
 
     # --- Execution ---
     preprocessor = FeaturePreprocessor(data_manager=dm)

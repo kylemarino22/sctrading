@@ -11,7 +11,7 @@ from datetime import date, timedelta, datetime
 # CONFIGURATION
 # ============================================
 
-API_KEY = "8PB9Ur5yWGX7d7okqxhhvB9i_0bCsOut"
+API_KEY = ""
 BASE_URL = "https://api.polygon.io"
 DATA_DIR = Path("data")
 VOL_FILE = DATA_DIR / "daily_volumes.csv"
